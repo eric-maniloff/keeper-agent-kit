@@ -447,6 +447,77 @@ print(json.dumps(report, indent=2))
 EOF
 ```
 
+## Enterprise Reporting, Auditing & License Consumption
+
+All commands below can be run inside `keeper shell` (`My Vault>`) or non-interactively as `keeper <command>` / `echo "<command>" | keeper --batch-mode`.
+
+### Enterprise Hierarchy (`enterprise-info` / `ei`)
+
+```bash
+# List users with custom columns
+keeper enterprise-info --users --columns name,status,transfer_status,node,roles,teams,2fa_enabled,job_title --format json
+
+# List roles with enforcement policies, direct users, and assigned teams
+keeper enterprise-info --roles --columns node,admin,user_count,users,team_count,teams,enforcements --format json
+
+# List teams and their members
+keeper enterprise-info --teams --columns node,restricts,user_count,users,roles --format json
+
+# List enterprise nodes
+keeper enterprise-info --nodes --columns parent_node,user_count,team_count,role_count,provisioning --format json
+
+# Scope any enterprise-info query to a specific sub-node
+keeper enterprise-info --users --node "Engineering" --format json
+```
+
+### Auditing KeeperPAM & Secrets Manager (KSM) Permissions
+
+KeeperPAM and KSM capabilities are granted via Role Enforcement Policies (`role_enforcements`) assigned directly to users (`roles.users`) or inherited through teams (`roles.teams` -> `teams.users`).
+
+```bash
+# Users consuming PAM licenses (including team-assigned roles and policy details)
+keeper license-consumption-report --feature pam --details --include-teams --format json
+
+# Consolidated license report across PAM, Secrets Manager, Connection Manager, and BreachWatch
+keeper license-consumption-report --feature all --details --include-teams --format json
+
+# Scope license report to a specific node
+keeper license-consumption-report --feature pam --node "Engineering" --details --include-teams --format json
+```
+
+**All 14 KeeperPAM Enforcement Keys:**
+`allow_pam_rotation`, `allow_pam_discovery`, `allow_pam_gateway`, `allow_configure_rotation_settings`, `allow_rotate_credentials`, `allow_configure_pam_cloud_connection_settings`, `allow_launch_pam_on_cloud_connection`, `allow_configure_pam_tunneling_settings`, `allow_launch_pam_tunnels`, `allow_launch_rbi`, `allow_configure_rbi`, `allow_view_kcm_recordings`, `allow_view_rbi_recordings`, `allow_configure_workflow_settings`
+
+**Keeper Secrets Manager (KSM) Enforcement Key:**
+`allow_secrets_manager`
+
+To resolve PAM/KSM users directly from `enterprise-info`, query `keeper enterprise-info --roles --columns node,enforcements,users,teams --format json` and `keeper enterprise-info --teams --columns users --format json`, expand team memberships into users, and filter roles whose `enforcements` contain any of the keys above.
+
+### User Activity, Inactivity & Audit Recipes
+
+```bash
+# Last login report across enterprise users
+keeper user-report --last-login --days 365 --format json
+
+# Dry-run report of users who have not logged in for 90 days
+keeper action-report --target no-logon --days-since 90 --format json
+
+# Invited users who have not accepted for 30 days
+keeper action-report --target invited --days-since 30 --format json
+
+# Raw audit events (recent / last_30_days)
+keeper audit-report --report-type raw --created last_30_days --limit 100 --format json
+
+# Summary counts by event type and user
+keeper audit-report --report-type dim --columns audit_event_type,username --format json
+
+# Security audit, compliance, and external shares reports
+keeper security-audit-report --format json
+keeper compliance summary-report --format json
+keeper compliance report --format json
+keeper external-shares-report --format json
+```
+
 ## Troubleshooting
 
 | Issue | Solution |

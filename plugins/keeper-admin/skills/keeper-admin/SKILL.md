@@ -255,30 +255,38 @@ Commander can run as a headless REST API for automation.
 keeper --batch-mode api-server --port 8089
 ```
 
-## Automation (Batch Commands)
+## Automation (Batch & Single-Command Mode)
 
 ```bash
+# Run a single command directly (preferred for non-interactive scripts & agents)
+keeper enterprise-info --users --format json
+keeper audit-report --report-type raw --created last_30_days --limit 100 --format json
+
 # Run commands from a file
 keeper --batch-mode --commands-file commands.txt
 
-# Pipe commands
-echo "list" | keeper --batch-mode --user admin@co.com
+# Pipe commands via stdin
+echo "list --format json" | keeper --batch-mode --user admin@co.com
 ```
+
+> **Invocation notes:**
+> - **Do NOT use `keeper shell -c "..."`** — `-c` is not a `shell` flag; Commander treats it as a command and drops into an interactive prompt. Always use `keeper <command>` directly or `keeper --batch-mode`.
+> - Request `--format json` whenever supported for reliable parsing. Because Commander may print informational banner lines before the JSON payload, parse stdout starting from the first `[` or `{`.
 
 ## References
 - Use `references/endpoint-privilege-management.md` for endpoint privilege management commands like kepm, epm, pedm commands
-- Use `references/enterprise-mgmt.md` for enterprise management scenarios and commands.
+- Use `references/enterprise-mgmt.md` for enterprise management scenarios, role enforcement keys, license consumption, and audit/compliance reporting recipes.
 - Use `references/pam-commands.md` for privileged access management or KeeperPAM functionalities.
 - Use `references/msp-management.md` for commands specific to Managed Service Provider (MSP) tenants
-- 
 
 ## Guardrails
 
+- **Read-Only Commands (Safe to Run Directly):** `whoami`, `enterprise-info` (`ei`), `license-consumption-report` (`lcr`), `user-report`, `audit-report`, `action-report` (without `--apply-action`), `security-audit-report`, `compliance summary-report`, `compliance report`, `external-shares-report`, `pam gateway list`, `pam config list`, `pam rotation list`, `pam tunnel list`, `secrets-manager app list`, `search`, `ls`, `get`, `find-duplicate`, `password-report`, `file-report`, `breachwatch list`.
+- **Mutating / Destructive Commands (Always Confirm First):** Any command that modifies enterprise or vault state (`--add`, `--delete`, `--lock`, `--unlock`, `--disable-2fa`, `--wipe-out`, `--enforcement`, `--add-user`, `--remove-user`, `--apply-action`, `rm`, `rmdir`, `delete-all`, `transfer-user`, `pam action rotate`, `pam gateway remove`, `pam config remove`). Show the exact command(s) and ask for confirmation before executing.
+- **Avoid argparse Flag Abbreviations:** Always write full flag names. For example, to disable/lock a user use `enterprise-user --lock <email>` — **never** `--disable`, which `argparse` auto-expands to `--disable-2fa`.
 - NEVER expose the user's master password in logs, chat, or code.
 - NEVER print secret field values into chat unless explicitly requested for
   a specific debugging purpose - and warn the user first.
-- For destructive operations (delete user, delete record, modify role
-  enforcement), always confirm with the user before executing.
 - If the user needs runtime secret injection for an application, redirect
   them to the keeper-secrets skill and KSM CLI.
 - Commander requires a full user login - it cannot be used in headless
